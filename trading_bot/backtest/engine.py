@@ -89,6 +89,7 @@ class BacktestResult:
     equity_curve: pd.Series
     report: PerformanceReport
     positions: pd.DataFrame  # shares held per symbol over time
+    prices: pd.DataFrame  # aligned close price per symbol (for charting/benchmark)
     config: BacktestConfig
     strategy_name: str
 
@@ -168,6 +169,7 @@ def run_backtest(
 
     equity_curve = pd.Series(equity_values, index=index, name="equity")
     positions = pd.DataFrame(position_rows, index=index)
+    prices = pd.DataFrame({s: closes[s] for s in symbols}, index=index)
     report = performance_report(
         equity_curve,
         trade_pnls=pf.realized_trade_pnls,
@@ -179,6 +181,7 @@ def run_backtest(
         equity_curve=equity_curve,
         report=report,
         positions=positions,
+        prices=prices,
         config=config,
         strategy_name=strategy.name,
     )

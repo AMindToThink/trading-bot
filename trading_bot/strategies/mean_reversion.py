@@ -6,8 +6,8 @@ import math
 
 import pandas as pd
 
-from trading_bot.indicators import zscore
-from trading_bot.strategies.base import Strategy, register
+from trading_bot.indicators import bollinger_bands, zscore
+from trading_bot.strategies.base import Param, Strategy, _clean, register
 
 
 @register("mean_reversion")
@@ -24,6 +24,19 @@ class MeanReversion(Strategy):
     """
 
     name = "Mean Reversion (Bollinger z-score)"
+    num_symbols = 1
+    blurb = "Fade extremes: buy when price is unusually low vs its recent mean, sell when high."
+    signal_katex = r"z_t = \frac{P_t - \mu_t}{\sigma_t};\ \text{long if } z_t \le -z_{\text{entry}}"
+    default_symbols = ("SPY",)
+
+    @classmethod
+    def param_spec(cls):
+        return [
+            Param("window", 20, "int", "Window (N)", "Bars for the rolling mean & std."),
+            Param("entry_z", 2.0, "float", "Entry z", "Enter when |z| reaches this."),
+            Param("exit_z", 0.0, "float", "Exit z", "Exit when z reverts to this."),
+            Param("allow_short", True, "bool", "Allow shorting", "Short the overbought side."),
+        ]
 
     def __init__(
         self,
@@ -45,7 +58,9 @@ class MeanReversion(Strategy):
         return [self.symbol]
 
     def prepare(self, data: dict[str, pd.DataFrame]) -> None:
-        self.z = zscore(data[self.symbol]["close"], self.window, population=True).to_numpy()
+        close = data[self.symbol]["close"]
+        self.z = zscore(close, self.window, population=True).to_numpy()
+        self._bands = bollinger_bands(close, self.window, self.entry_z, population=True)
 
     def on_bar(self, t: int, ctx) -> None:
         z = self.z[t]
@@ -63,3 +78,21 @@ class MeanReversion(Strategy):
         else:  # short
             if z <= self.exit_z:
                 ctx.close_position(self.symbol)
+
+    def plot_series(self):
+        return {
+            f"Mean({self.window})": _clean(self._bands["mid"].to_numpy()),
+            "Upper band": _clean(self._bands["upper"].to_numpy()),
+            "Lower band": _clean(self._bands["lower"].to_numpy()),
+        }
+
+    def signal_panel(self):
+        return {
+            "name": f"z-score({self.window})",
+            "values": _clean(self.z),
+            "thresholds": [
+                {"y": self.entry_z, "label": "+entry"},
+                {"y": 0.0, "label": "mean"},
+                {"y": -self.entry_z, "label": "-entry"},
+            ],
+        }

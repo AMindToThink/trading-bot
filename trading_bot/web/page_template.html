@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Trading Bot — An Educational Day-Trading Lab</title>
+  <meta name="description" content="A math-first, honest introduction to algorithmic day trading of US stocks: backtesting, live data, and the statistics behind every decision." />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" integrity="sha384-43gviWU0YVjaDtb/GhzOouOXtZMP/7XUzwPTstBeZFe/+rCMvRwr4yROQP43s0Xk" crossorigin="anonymous"></script>
+  <script defer src="/static/app.js"></script>
+</head>
+<body>
+
+<nav class="top">
+  <div class="wrap">
+    <div class="brand">📈 Trading<span>Lab</span></div>
+    <a class="navlink" href="#reality">Reality</a>
+    <a class="navlink" href="#lab">Try it</a>
+    <a class="navlink" href="#ma">Strategies</a>
+    <a class="navlink" href="#backtest">Backtesting</a>
+    <a class="navlink" href="#metrics">Metrics</a>
+    <a class="navlink" href="#overfitting">Pitfalls</a>
+    <a class="navlink" href="#golive">Real money</a>
+  </div>
+</nav>
+
+<!-- ============================ HERO ============================ -->
+<header class="hero">
+  <div class="container">
+    <div class="pill">📊 For the statistically curious · <b>not financial advice</b></div>
+    <h1>Day trading, taught honestly —<br/>with the math made visible.</h1>
+    <p class="lead">
+      A working algorithmic trading bot for US stocks, built as a lesson. Backtest four
+      classic strategies on real historical data, watch the statistics that drive every
+      decision, and see — with evidence — why this is so hard. Then, if you choose, take
+      it to paper trading and eventually real money.
+    </p>
+    <div class="btn-row">
+      <button class="btn primary scroll-run">Run a backtest →</button>
+      <a class="btn" href="#reality">Start with the truth</a>
+      <a class="btn" href="https://github.com/AMindToThink/trading-bot" target="_blank" rel="noopener">View the code</a>
+    </div>
+  </div>
+</header>
+
+<!-- ============================ REALITY ============================ -->
+<section class="block" id="reality"><div class="container lesson"><!--LESSON:reality--></div></section>
+
+<!-- ============================ HOW IT WORKS ============================ -->
+<section class="block" id="how">
+  <div class="container">
+    <div class="eyebrow">The pipeline</div>
+    <h2>How the bot works</h2>
+    <p class="lead">Five stages, each a separate, testable piece. The same strategy code runs
+      in the backtester and live — only the data and the order destination change.</p>
+    <div class="grid cols-4" style="margin-top:26px">
+      <div class="card"><div class="tag">1 · Data</div><h3>Prices in</h3><p>Free historical bars from Yahoo for backtests; real-time IEX bars from Alpaca for live. One normalized OHLCV shape feeds everything.</p></div>
+      <div class="card"><div class="tag">2 · Strategy</div><h3>A rule</h3><p>An indicator turns prices into a signal — a moving average, a z-score, an RSI, a spread. Each strategy is ~40 lines and fully transparent.</p></div>
+      <div class="card"><div class="tag">3 · Backtest</div><h3>Test on history</h3><p>An event-driven engine that decides on today's close and fills at tomorrow's open — so it can't cheat by peeking at the future.</p></div>
+      <div class="card"><div class="tag">4 · Paper → Live</div><h3>Trade for real</h3><p>The same logic talks to a broker behind risk guards: a kill switch, position caps, and an explicit opt-in before real money.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ INTERACTIVE LAB ============================ -->
+<section class="block" id="lab">
+  <div class="container">
+    <div class="eyebrow">Hands on</div>
+    <h2>Backtest a strategy</h2>
+    <p class="lead">Pick a strategy and tickers, choose a date range, and run it on real daily
+      data. Compare the strategy's equity curve against simply buying and holding.</p>
+
+    <div class="lab" style="margin-top:24px">
+      <div class="controls">
+        <div class="field">
+          <label>Strategy</label>
+          <select id="strategy"></select>
+        </div>
+        <div id="symbols" style="display:contents"></div>
+        <div id="params"></div>
+      </div>
+      <div class="controls" style="margin-top:14px">
+        <div class="field"><label>Start date</label><input id="start" type="date" /></div>
+        <div class="field"><label>End date</label><input id="end" type="date" /></div>
+        <div class="field"><label>Starting cash ($)</label><input id="cash" type="number" value="100000" step="1000" /></div>
+        <div class="field"><label>Cost per trade (bps)</label><input id="cost" type="number" value="5" step="1" /></div>
+      </div>
+      <p id="strategy-blurb" class="hint" style="margin-top:14px"></p>
+      <div class="math-block" id="strategy-math" style="margin-top:6px"></div>
+      <div class="run-row">
+        <button class="btn primary" id="run">Run backtest</button>
+        <span class="spinner" id="spinner"></span>
+        <span class="hint">Uses free Yahoo data — occasional rate-limits are normal; just retry.</span>
+      </div>
+      <div id="err" class="err" style="margin-top:10px"></div>
+    </div>
+
+    <!-- results -->
+    <div id="results" style="display:none">
+      <div class="metrics" id="metrics"></div>
+      <div id="adf-note"></div>
+      <div class="charts">
+        <div class="chart-card">
+          <div class="title"><span>Price, indicators &amp; trades</span></div>
+          <canvas id="chart-price"></canvas>
+          <div class="legend" id="legend-price"></div>
+        </div>
+        <div class="chart-card">
+          <div class="title"><span>Equity curve vs. buy &amp; hold</span></div>
+          <canvas id="chart-equity"></canvas>
+          <div class="legend" id="legend-equity"></div>
+        </div>
+        <div class="chart-card" id="chart-signal-card" style="display:none">
+          <div class="title"><span id="signal-title">Signal</span></div>
+          <canvas id="chart-signal"></canvas>
+        </div>
+        <div class="chart-card">
+          <div class="title"><span>Drawdown (how far below the prior peak)</span></div>
+          <canvas id="chart-dd"></canvas>
+        </div>
+      </div>
+      <p class="hint" style="margin-top:14px">A backtest is a hypothesis about the past, not a promise about the future. Read the
+        <a href="#overfitting">pitfalls</a> before you believe any number above.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ STRATEGY LESSONS ============================ -->
+<section class="block" id="ma"><div class="container lesson"><!--LESSON:ma--></div></section>
+<section class="block" id="meanrev"><div class="container lesson"><!--LESSON:meanrev--></div></section>
+<section class="block" id="rsi"><div class="container lesson"><!--LESSON:rsi--></div></section>
+<section class="block" id="pairs"><div class="container lesson"><!--LESSON:pairs--></div></section>
+
+<!-- ============================ RIGOR ============================ -->
+<section class="block" id="backtest"><div class="container lesson"><!--LESSON:backtest--></div></section>
+<section class="block" id="metrics"><div class="container lesson"><!--LESSON:metrics--></div></section>
+<section class="block" id="overfitting"><div class="container lesson"><!--LESSON:overfitting--></div></section>
+<section class="block" id="golive"><div class="container lesson"><!--LESSON:golive--></div></section>
+
+<footer>
+  <div class="container">
+    <p><strong>Trading<span style="color:var(--accent)">Lab</span></strong> — an educational project. Nothing here is financial advice.
+      Day trading is risky and most people who try it lose money. Trade paper money while you learn.</p>
+    <p>Run it yourself: <span class="kbd">uv run uvicorn trading_bot.web.app:app --reload</span> ·
+      <a href="https://github.com/AMindToThink/trading-bot" target="_blank" rel="noopener">source on GitHub</a></p>
+  </div>
+</footer>
+
+</body>
+</html>

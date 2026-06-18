@@ -5,7 +5,7 @@ from __future__ import annotations
 import pandas as pd
 
 from trading_bot.indicators import ema, sma
-from trading_bot.strategies.base import Strategy, register
+from trading_bot.strategies.base import Param, Strategy, _clean, register
 
 
 @register("ma_crossover")
@@ -19,6 +19,18 @@ class MovingAverageCrossover(Strategy):
     """
 
     name = "Moving-Average Crossover"
+    num_symbols = 1
+    blurb = "Trend-following: go long when a fast average crosses above a slow one."
+    signal_katex = r"D_t = \mathrm{MA}^{(N_s)}_t - \mathrm{MA}^{(N_l)}_t;\ \text{buy when } D_{t-1}\le 0 < D_t"
+    default_symbols = ("AAPL",)
+
+    @classmethod
+    def param_spec(cls):
+        return [
+            Param("short_window", 20, "int", "Short window (Nₛ)", "Bars in the fast average."),
+            Param("long_window", 50, "int", "Long window (Nₗ)", "Bars in the slow average."),
+            Param("allow_short", False, "bool", "Allow shorting", "Short on a death cross."),
+        ]
 
     def __init__(
         self,
@@ -59,3 +71,9 @@ class MovingAverageCrossover(Strategy):
             ctx.order_target_percent(self.symbol, self.position_size)
         elif d_prev >= 0 > d_now:  # death cross
             ctx.order_target_percent(self.symbol, -self.position_size if self.allow_short else 0.0)
+
+    def plot_series(self):
+        return {
+            f"MA({self.short_window})": _clean(self.ma_short),
+            f"MA({self.long_window})": _clean(self.ma_long),
+        }

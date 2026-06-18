@@ -7,7 +7,7 @@ import math
 import numpy as np
 import pandas as pd
 
-from trading_bot.strategies.base import Strategy, register
+from trading_bot.strategies.base import Param, Strategy, _clean, register
 
 
 @register("pairs")
@@ -31,6 +31,20 @@ class PairsTrading(Strategy):
     """
 
     name = "Pairs Trading (cointegration)"
+    num_symbols = 2
+    blurb = "Stat-arb: trade the mean-reverting spread between two cointegrated stocks."
+    signal_katex = r"s_t = A_t - \hat\beta_t B_t,\ z_t=\frac{s_t-\mu_t}{\sigma_t};\ \text{short spread if } z_t\ge z_{\text{entry}}"
+    default_symbols = ("KO", "PEP")
+
+    @classmethod
+    def param_spec(cls):
+        return [
+            Param("lookback", 60, "int", "β lookback", "Bars for the rolling hedge ratio."),
+            Param("z_window", 60, "int", "z window", "Bars for the spread mean & std."),
+            Param("entry_z", 2.0, "float", "Entry z", "Open when |z| reaches this."),
+            Param("exit_z", 0.5, "float", "Exit z", "Close when |z| falls below this."),
+            Param("stop_z", 4.0, "float", "Stop z", "Bail out if |z| exceeds this."),
+        ]
 
     def __init__(
         self,
@@ -112,3 +126,14 @@ class PairsTrading(Strategy):
             if abs(z) <= self.exit_z or abs(z) >= self.stop_z:
                 ctx.close_position(self.symbol_a)
                 ctx.close_position(self.symbol_b)
+
+    def signal_panel(self):
+        return {
+            "name": "Spread z-score",
+            "values": _clean(self.z),
+            "thresholds": [
+                {"y": self.entry_z, "label": "+entry"},
+                {"y": 0.0, "label": "mean"},
+                {"y": -self.entry_z, "label": "-entry"},
+            ],
+        }

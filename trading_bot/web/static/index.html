@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Trading Bot — An Educational Day-Trading Lab</title>
+  <meta name="description" content="A math-first, honest introduction to algorithmic day trading of US stocks: backtesting, live data, and the statistics behind every decision." />
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" integrity="sha384-nB0miv6/jRmo5UMMR1wu3Gz6NLsoTkbqJghGIsx//Rlm+ZU03BU6SQNC66uf4l5+" crossorigin="anonymous" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/styles.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js" integrity="sha384-7zkQWkzuo3B5mTepMUcHkMB5jZaolc2xDwL6VFqjFALcbeS9Ggm/Yr2r3Dy4lfFg" crossorigin="anonymous"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js" integrity="sha384-43gviWU0YVjaDtb/GhzOouOXtZMP/7XUzwPTstBeZFe/+rCMvRwr4yROQP43s0Xk" crossorigin="anonymous"></script>
+  <script defer src="/static/app.js"></script>
+</head>
+<body>
+
+<nav class="top">
+  <div class="wrap">
+    <div class="brand">📈 Trading<span>Lab</span></div>
+    <a class="navlink" href="#reality">Reality</a>
+    <a class="navlink" href="#lab">Try it</a>
+    <a class="navlink" href="#ma">Strategies</a>
+    <a class="navlink" href="#backtest">Backtesting</a>
+    <a class="navlink" href="#metrics">Metrics</a>
+    <a class="navlink" href="#overfitting">Pitfalls</a>
+    <a class="navlink" href="#golive">Real money</a>
+  </div>
+</nav>
+
+<!-- ============================ HERO ============================ -->
+<header class="hero">
+  <div class="container">
+    <div class="pill">📊 For the statistically curious · <b>not financial advice</b></div>
+    <h1>Day trading, taught honestly —<br/>with the math made visible.</h1>
+    <p class="lead">
+      A working algorithmic trading bot for US stocks, built as a lesson. Backtest four
+      classic strategies on real historical data, watch the statistics that drive every
+      decision, and see — with evidence — why this is so hard. Then, if you choose, take
+      it to paper trading and eventually real money.
+    </p>
+    <div class="btn-row">
+      <button class="btn primary scroll-run">Run a backtest →</button>
+      <a class="btn" href="#reality">Start with the truth</a>
+      <a class="btn" href="https://github.com/AMindToThink/trading-bot" target="_blank" rel="noopener">View the code</a>
+    </div>
+  </div>
+</header>
+
+<!-- ============================ REALITY ============================ -->
+<section class="block" id="reality"><div class="container lesson"><h2>First, the honest truth</h2>
+
+<p>Before we build a single trading rule, you deserve the uncomfortable data. Day trading is not a coin flip with even odds. The large studies that actually tracked real traders over years tell a remarkably consistent story: <strong>most people lose money</strong>, and the few winners are rare enough that you should assume, by default, that you are not one of them.</p>
+
+<ul>
+  <li><strong>Barber, Lee, Liu &amp; Odean</strong> studied <em>every</em> day trader in Taiwan from 1992 to 2006. More than 8 in 10 (over 80%) lost money net of fees, and only about 1% were reliably profitable after costs.</li>
+  <li><strong>Chague, De-Losso &amp; Giovannetti</strong> followed roughly 20,000 new Brazilian day traders. Among those who persisted more than 300 days, 97% lost money and only 1.1% earned more than the Brazilian minimum wage. Crucially, they found <em>no</em> evidence that traders learned and improved over time.</li>
+  <li><strong>Barber &amp; Odean</strong> found that the most active individual investors underperform the market by roughly 10 percentage points per year after costs.</li>
+</ul>
+
+<h3>Why the average trader must lose</h3>
+
+<p>This is not bad luck; it is arithmetic. For every share you buy, someone sells; for every winner, there is a loser. Before costs, trading is roughly <strong>zero-sum</strong> across all participants. But every trade leaks money to fees, the bid-ask <em>spread</em> (the gap between the buying and selling price), and taxes. That turns the game <strong>negative-sum</strong>. If the average outcome before costs is zero, then after the "house edge" of costs the average trader's expected return is <em>negative</em>:</p>
+
+<div class="math-block">$$\mathbb{E}[\text{net return}] = \underbrace{\mathbb{E}[\text{gross return}]}_{\approx\,0\text{ on average}} - \underbrace{\text{costs}}_{>\,0} \;<\; 0$$</div>
+
+<p>Here \(\mathbb{E}[\cdot]\) is the <em>expected value</em> from intro stats: the long-run average over many trades. A small, persistent minority do show genuine skill that overcomes this edge, but they are the exception, not the rule.</p>
+
+<div class="callout callout-key"><div class="h">Key idea</div><p>The success stories you hear are a <strong>survivorship-biased sample</strong>. We only see the winners who kept playing; the 80-97% who quit after losing are invisible. Selecting on "people who got rich trading" is like measuring only the lottery winners and concluding lottery tickets are a great investment.</p></div>
+
+<div class="callout callout-danger"><div class="h">Reality check</div><p>The realistic expected outcome of active day trading is to lose money. This project's goal is <strong>not</strong> to get rich. It is to <strong>understand the statistics</strong>, to learn safely on paper money (no real dollars at risk), and to respect how steep the odds genuinely are.</p></div></div></section>
+
+<!-- ============================ HOW IT WORKS ============================ -->
+<section class="block" id="how">
+  <div class="container">
+    <div class="eyebrow">The pipeline</div>
+    <h2>How the bot works</h2>
+    <p class="lead">Five stages, each a separate, testable piece. The same strategy code runs
+      in the backtester and live — only the data and the order destination change.</p>
+    <div class="grid cols-4" style="margin-top:26px">
+      <div class="card"><div class="tag">1 · Data</div><h3>Prices in</h3><p>Free historical bars from Yahoo for backtests; real-time IEX bars from Alpaca for live. One normalized OHLCV shape feeds everything.</p></div>
+      <div class="card"><div class="tag">2 · Strategy</div><h3>A rule</h3><p>An indicator turns prices into a signal — a moving average, a z-score, an RSI, a spread. Each strategy is ~40 lines and fully transparent.</p></div>
+      <div class="card"><div class="tag">3 · Backtest</div><h3>Test on history</h3><p>An event-driven engine that decides on today's close and fills at tomorrow's open — so it can't cheat by peeking at the future.</p></div>
+      <div class="card"><div class="tag">4 · Paper → Live</div><h3>Trade for real</h3><p>The same logic talks to a broker behind risk guards: a kill switch, position caps, and an explicit opt-in before real money.</p></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ INTERACTIVE LAB ============================ -->
+<section class="block" id="lab">
+  <div class="container">
+    <div class="eyebrow">Hands on</div>
+    <h2>Backtest a strategy</h2>
+    <p class="lead">Pick a strategy and tickers, choose a date range, and run it on real daily
+      data. Compare the strategy's equity curve against simply buying and holding.</p>
+
+    <div class="lab" style="margin-top:24px">
+      <div class="controls">
+        <div class="field">
+          <label>Strategy</label>
+          <select id="strategy"></select>
+        </div>
+        <div id="symbols" style="display:contents"></div>
+        <div id="params"></div>
+      </div>
+      <div class="controls" style="margin-top:14px">
+        <div class="field"><label>Start date</label><input id="start" type="date" /></div>
+        <div class="field"><label>End date</label><input id="end" type="date" /></div>
+        <div class="field"><label>Starting cash ($)</label><input id="cash" type="number" value="100000" step="1000" /></div>
+        <div class="field"><label>Cost per trade (bps)</label><input id="cost" type="number" value="5" step="1" /></div>
+      </div>
+      <p id="strategy-blurb" class="hint" style="margin-top:14px"></p>
+      <div class="math-block" id="strategy-math" style="margin-top:6px"></div>
+      <div class="run-row">
+        <button class="btn primary" id="run">Run backtest</button>
+        <span class="spinner" id="spinner"></span>
+        <span class="hint">Uses free Yahoo data — occasional rate-limits are normal; just retry.</span>
+      </div>
+      <div id="err" class="err" style="margin-top:10px"></div>
+    </div>
+
+    <!-- results -->
+    <div id="results" style="display:none">
+      <div class="metrics" id="metrics"></div>
+      <div id="adf-note"></div>
+      <div class="charts">
+        <div class="chart-card">
+          <div class="title"><span>Price, indicators &amp; trades</span></div>
+          <canvas id="chart-price"></canvas>
+          <div class="legend" id="legend-price"></div>
+        </div>
+        <div class="chart-card">
+          <div class="title"><span>Equity curve vs. buy &amp; hold</span></div>
+          <canvas id="chart-equity"></canvas>
+          <div class="legend" id="legend-equity"></div>
+        </div>
+        <div class="chart-card" id="chart-signal-card" style="display:none">
+          <div class="title"><span id="signal-title">Signal</span></div>
+          <canvas id="chart-signal"></canvas>
+        </div>
+        <div class="chart-card">
+          <div class="title"><span>Drawdown (how far below the prior peak)</span></div>
+          <canvas id="chart-dd"></canvas>
+        </div>
+      </div>
+      <p class="hint" style="margin-top:14px">A backtest is a hypothesis about the past, not a promise about the future. Read the
+        <a href="#overfitting">pitfalls</a> before you believe any number above.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ STRATEGY LESSONS ============================ -->
+<section class="block" id="ma"><div class="container lesson"><h2>Moving-Average Crossover: Riding the Trend</h2>
+
+<p>The simplest trend-following idea is this: instead of reacting to every jittery price tick, first <strong>smooth</strong> the price, then bet that whatever direction it is sliding in will continue. A moving average is exactly that smoother — it is the running mean of recent closing prices, and like any sample mean, it averages out the noise so the signal underneath becomes visible.</p>
+
+<h3>Two ways to average</h3>
+
+<p>The <strong>Simple Moving Average</strong> over a window of \(N\) days weights the last \(N\) closing prices equally:</p>
+
+<div class="math-block">$$\mathrm{SMA}_t^{(N)} = \frac{1}{N}\sum_{i=0}^{N-1} P_{t-i}$$</div>
+
+<p>Here \(P_t\) is the closing price on day \(t\), and \(N\) is the window length (how many days we average). This is just the sample mean from intro stats, slid forward one day at a time.</p>
+
+<p>The <strong>Exponential Moving Average</strong> instead gives more weight to recent prices, with a smoothing factor \(\alpha = \tfrac{2}{N+1}\):</p>
+
+<div class="math-block">$$\mathrm{EMA}_t = \alpha P_t + (1-\alpha)\,\mathrm{EMA}_{t-1}$$</div>
+
+<p>Unrolling this recursion, today's price gets weight \(\alpha\), yesterday's \(\alpha(1-\alpha)\), the day before \(\alpha(1-\alpha)^2\), and so on — the weights decay <strong>exponentially</strong> into the past. Older prices never fully vanish; they just fade. A larger \(N\) means a smaller \(\alpha\), so the EMA reacts more slowly.</p>
+
+<h3>The crossover signal</h3>
+
+<p>Run a <strong>short</strong> average (window \(N_s\), e.g. 50 days) and a <strong>long</strong> one (window \(N_l\), e.g. 200 days), with \(N_s < N_l\), and watch their gap:</p>
+
+<div class="math-block">$$D_t = \mathrm{MA}^{(N_s)}_t - \mathrm{MA}^{(N_l)}_t$$</div>
+
+<p>The short average tracks recent momentum; the long one tracks the established baseline. When the gap flips sign, the trend has turned. A <strong>golden cross</strong> (bullish — go long) is \(D_{t-1} \le 0 < D_t\); a <strong>death cross</strong> (bearish — exit or short) is \(D_{t-1} \ge 0 > D_t\).</p>
+
+<div class="callout callout-key"><div class="h">Key idea</div><p>A moving average smooths noise to reveal the underlying trend; the crossover of a fast and a slow average detects the moment that trend changes direction.</p></div>
+
+<div class="callout callout-warn"><div class="h">Watch out</div><p>Averages <strong>lag</strong> by construction — they describe the past. Signals therefore arrive <em>after</em> a move has begun, and in flat, sideways markets the two averages tangle around each other, firing rapid buy/sell <strong>whipsaws</strong> that bleed money to fees and bad fills.</p></div></div></section>
+<section class="block" id="meanrev"><div class="container lesson"><h2>Mean Reversion with Bollinger Bands and the z-score</h2>
+
+<p>Some prices wander away from their recent average and then drift back, like a stretched rubber band snapping toward its resting length. A <strong>mean-reversion</strong> strategy bets on exactly that snap-back: when a price looks unusually high, sell (short); when it looks unusually low, buy (long); and close the position once the price returns to "normal." The whole strategy rests on one statistic you already know from intro stats: the <strong>z-score</strong>.</p>
+
+<h3>The recent average and its spread</h3>
+
+<p>We don't compare today's price to all history; we use a rolling window of the last \(N\) prices (default \(N=20\) trading days). Let \(P_t\) be the price at time \(t\). The <strong>rolling mean</strong> (the "middle band") is just the average of those recent prices:</p>
+
+<div class="math-block">$$\mu_t = \frac{1}{N}\sum_{i=0}^{N-1} P_{t-i}$$</div>
+
+<p>The <strong>rolling standard deviation</strong> measures how spread out those recent prices were around their average. We use the population convention (dividing by \(N\), not \(N-1\)):</p>
+
+<div class="math-block">$$\sigma_t = \sqrt{\frac{1}{N}\sum_{i=0}^{N-1}(P_{t-i}-\mu_t)^2}$$</div>
+
+<p>Here \(\mu_t\) is the rolling mean, and each \((P_{t-i}-\mu_t)^2\) is one squared deviation from that mean — the same recipe for standard deviation you computed by hand in statistics class, just over a sliding 20-day window.</p>
+
+<h3>Bollinger Bands are z-score lines in disguise</h3>
+
+<p>Bollinger Bands draw a channel a fixed number of standard deviations \(k\) (default \(k=2\)) above and below the mean:</p>
+
+<p>\(\text{Upper}=\mu_t+k\sigma_t\), \(\quad\text{Lower}=\mu_t-k\sigma_t\).</p>
+
+<p>The <strong>z-score</strong> tells us how many standard deviations the current price sits from the recent average:</p>
+
+<div class="math-block">$$z_t = \frac{P_t - \mu_t}{\sigma_t}$$</div>
+
+<p>This is identical to the z-score from intro stats: subtract the mean, divide by the standard deviation. Notice the bands are nothing more than z-score contours — price touching the upper band means exactly \(z_t = +k\), and touching the lower band means \(z_t = -k\). The bands and the z-score are two views of the same number.</p>
+
+<div class="callout callout-key"><div class="h">Key idea</div><p>The z-score \(z_t\) answers "how unusual is today's price, in standard-deviation units, relative to the last \(N\) days?" Mean reversion bets that extreme z-scores shrink back toward 0.</p></div>
+
+<h3>The trading rules</h3>
+
+<ul>
+<li><strong>Enter LONG</strong> (buy) when \(z_t \le -z_{\text{entry}}\): the price is unusually <em>cheap</em>.</li>
+<li><strong>Enter SHORT</strong> (sell) when \(z_t \ge +z_{\text{entry}}\): the price is unusually <em>expensive</em>.</li>
+<li><strong>EXIT</strong> when price reverts to the mean (\(z_t \to 0\)): the rubber band has snapped back, so we take the profit.</li>
+</ul>
+
+<div class="callout callout-warn"><div class="h">Watch out</div><p>This entire strategy <em>assumes</em> the price series actually mean-reverts. In a strong trend, that assumption breaks: "cheap" keeps getting cheaper and "expensive" keeps getting more expensive. A falling stock can sit at \(z_t = -2\) for weeks while you keep buying into the decline. Mean reversion quietly bleeds money in trending markets — it only works when prices genuinely oscillate around a stable level.</p></div></div></section>
+<section class="block" id="rsi"><div class="container lesson"><h2>The Relative Strength Index (RSI)</h2>
+
+<p>RSI is a <strong>momentum oscillator</strong>: a single number between 0 and 100 that asks "of all the price movement over the recent past, what fraction of it was upward?" If a stock has been rising relentlessly, RSI sits near 100; if it has been falling, near 0; if gains and losses roughly balance, near 50. It is the bot's gauge of whether a name has been pushed too far, too fast.</p>
+
+<p>We start from the daily change \(\Delta_t = P_t - P_{t-1}\), where \(P_t\) is the closing price on day \(t\). We split each change into an <strong>up move</strong> and a <strong>down move</strong>, keeping losses as positive numbers:</p>
+
+<div class="math-block">$$U_t = \max(\Delta_t, 0), \qquad D_t = \max(-\Delta_t, 0).$$</div>
+
+<p>On any given day exactly one of these is nonzero. We then smooth each series with <strong>Wilder's average</strong> over a window of \(N=14\) days. This is a running weighted average where the old average is carried forward and the newest value nudges it:</p>
+
+<div class="math-block">$$\overline{U}_t = \frac{(N-1)\,\overline{U}_{t-1} + U_t}{N}, \qquad \overline{D}_t = \frac{(N-1)\,\overline{D}_{t-1} + D_t}{N}.$$</div>
+
+<p>Finally we form the <strong>relative strength</strong> \(\mathrm{RS}_t\), the ratio of average gain to average loss, and squash it into the 0&ndash;100 range:</p>
+
+<div class="math-block">$$\mathrm{RS}_t = \frac{\overline{U}_t}{\overline{D}_t}, \qquad \mathrm{RSI}_t = 100 - \frac{100}{1 + \mathrm{RS}_t}.$$</div>
+
+<p>The transform is just rescaling: when average gains and losses are equal, \(\mathrm{RS}=1\) and \(\mathrm{RSI}=50\). At the edges, if there were no losses (\(\overline{D}_t = 0\)) RSI is defined as 100; if there were no gains (\(\overline{U}_t = 0\)) it is 0. So RSI is genuinely the share of recent movement that pointed up.</p>
+
+<p>The bot reads it as a mean-reversion signal: <strong>RSI &lt; 30</strong> flags an <strong>oversold</strong> name (a candidate to buy), <strong>RSI &gt; 70</strong> flags an <strong>overbought</strong> one (sell or short), and a cross back through the <strong>50 midline</strong> is a common exit.</p>
+
+<div class="callout callout-key"><div class="h">Key idea</div><p>Wilder smoothing is an exponential moving average with weight \(\alpha = 1/N\) on the newest point. Do <strong>not</strong> confuse this with the ordinary EMA factor \(2/(N+1)\). For \(N=14\) that is \(\alpha = 1/14 \approx 0.071\) versus \(2/15 \approx 0.133\) &mdash; nearly double. Plugging the wrong \(\alpha\) into your code gives a faster, twitchier RSI that silently disagrees with every charting platform.</p></div>
+
+<div class="callout callout-warn"><div class="h">Watch out</div><p>The 30/70 thresholds are conventions, not laws. In a strong uptrend RSI can stay above 70 for weeks while the price keeps climbing &mdash; "overbought" is not a guarantee of reversal. Treat RSI as one piece of evidence, never a standalone trigger.</p></div>
+</div></section>
+<section class="block" id="pairs"><div class="container lesson"><h2>Pairs Trading: Betting on a Relationship, Not a Direction</h2>
+
+<p>The strategies so far bet on where a single stock is going. Pairs trading does something subtler: it finds two stocks that tend to move <em>together</em> and bets that any temporary gap between them will close. You stay roughly <strong>market-neutral</strong> (long one, short the other), so a broad market crash hurts both legs and largely cancels out. This is the realm of <strong>statistical arbitrage</strong>, and it leans hard on regression and a special hypothesis test.</p>
+
+<h3>Step 1: Find the hedge ratio with regression</h3>
+
+<p>Take two related stocks, A and B (say, two pipeline companies). Run an ordinary least-squares (OLS) regression of A's price on B's price:</p>
+
+<div class="math-block">$$A_t = \alpha + \beta B_t + \epsilon_t$$</div>
+
+<p>Here \(A_t\) and \(B_t\) are the prices at time \(t\), \(\alpha\) is the intercept, \(\epsilon_t\) is the residual (the leftover wiggle), and \(\beta\) is the slope. This is exactly the line-fitting you saw in intro stats. The slope estimate is</p>
+
+<div class="math-block">$$\hat{\beta} = \frac{\sum_t (A_t-\bar A)(B_t-\bar B)}{\sum_t (B_t-\bar B)^2}$$</div>
+
+<p>where \(\bar A,\bar B\) are the sample means. The \(\hat{\beta}\) tells you how many shares of B to trade against one share of A.</p>
+
+<h3>Step 2: Build the spread</h3>
+
+<p>The <strong>spread</strong> is just the regression residual — the part of A not explained by B:</p>
+
+<div class="math-block">$$s_t = A_t - \hat{\beta} B_t$$</div>
+
+<div class="callout callout-key"><div class="h">Key idea</div><p>Each stock may <em>wander</em> aimlessly on its own, yet a well-chosen <em>combination</em> \(A - \hat{\beta}B\) can be stable, hovering around a fixed mean. When that holds, the two are called <strong>cointegrated</strong>. You're not predicting prices — you're predicting that their gap reverts.</p></div>
+
+<h3>Step 3: Test for mean-reversion (the unit-root test)</h3>
+
+<p>Is the spread actually stable, or does it drift forever? The <strong>Augmented Dickey-Fuller (ADF)</strong> test answers this by regressing the spread's change on its own lagged level:</p>
+
+<div class="math-block">$$\Delta s_t = \gamma s_{t-1} + \sum_{j=1}^{p}\phi_j \Delta s_{t-j} + u_t$$</div>
+
+<p>\(\Delta s_t = s_t - s_{t-1}\) is the one-step change, and the lag terms (\(\phi_j\)) soak up short-term autocorrelation. The <strong>null hypothesis</strong> is \(\gamma = 0\): a <em>unit root</em>, meaning the spread is non-stationary and the pair is <em>not</em> cointegrated. If \(\gamma<0\), high values get pulled back down — mean reversion.</p>
+
+<p>The test statistic is \(\hat\gamma / \mathrm{SE}(\hat\gamma)\), which looks like a t-statistic but is <strong>not</strong> compared to the normal/t table. Under a unit root the statistic has its own skewed distribution, so you use special <strong>Dickey-Fuller critical values</strong>. It is a one-sided left-tail test: you <strong>reject the null</strong> (concluding stationary, cointegrated, tradeable) only when the statistic is <em>more negative</em> than the critical value, e.g. p-value < 0.05.</p>
+
+<h3>Step 4: Trade the z-score</h3>
+
+<p>Once cointegration passes, standardize the spread into a z-score using its mean \(\mu_s\) and standard deviation \(\sigma_s\):</p>
+
+<div class="math-block">$$z_t = \frac{s_t - \mu_s}{\sigma_s}$$</div>
+
+<ul>
+<li><strong>Short the spread</strong> (sell A, buy \(\beta\) of B) when \(z_t \ge +z_{\text{entry}}\) — the gap is unusually wide.</li>
+<li><strong>Long the spread</strong> (buy A, sell \(\beta\) of B) when \(z_t \le -z_{\text{entry}}\) — the gap is unusually narrow.</li>
+<li><strong>Exit</strong> when \(|z_t|\) is small — the gap has closed.</li>
+</ul>
+
+<div class="callout callout-warn"><div class="h">Watch out</div><p>Cointegration is a statistical relationship, not a law of nature. A merger, a regulatory shock, or a changed business model can make the relationship <strong>break down</strong> permanently — the spread walks off and never reverts. That's why a <strong>stop-loss on the spread</strong> matters: if \(z_t\) keeps growing instead of reverting, you exit and accept the loss rather than doubling down on a bet whose premise has expired.</p></div></div></section>
+
+<!-- ============================ RIGOR ============================ -->
+<section class="block" id="backtest"><div class="container lesson"><h2>Backtesting Honestly (and How Backtests Lie)</h2>
+
+<p>A <strong>backtest</strong> replays history and asks, "If I had run this strategy back then, what would have happened?" It is the single most seductive number in trading, because it is so easy to make it lie. A backtest that quietly peeks at the future, ignores costs, or only tests winners will promise riches it cannot deliver. This bot's engine is built specifically to resist those lies.</p>
+
+<h3>Look-ahead bias: trading on tomorrow's newspaper</h3>
+<p><strong>Look-ahead bias</strong> is using information that was not yet available at the moment of decision. The classic mistake is deciding to buy at a bar's close and then filling the order at that <em>same</em> close, as if you could act on a price the instant you observed it. A subtler version is <strong>normalizing with full-sample statistics</strong> (e.g. subtracting the mean of the entire dataset, including the future) the way a z-score \( z = (x-\mu)/\sigma \) uses \(\mu\) and \(\sigma\) you would not have known yet.</p>
+<p>The fix here is mechanical: the engine <strong>decides on the close of bar \(t\)</strong> but <strong>fills the order at the open of bar \(t+1\)</strong>. It can never act on a price it would not yet have seen. All indicators are <strong>causal</strong>, meaning the value at time \(t\) uses only prices \( \le t \).</p>
+
+<h3>Survivorship bias: only interviewing the survivors</h3>
+<p>If you test only on stocks that still exist today, you have silently dropped every company that went bankrupt or got delisted, inflating returns. Studies estimate this is worth on the order of <strong>~1-4%/yr</strong>; Elton, Gruber, and Blake found roughly <strong>0.9%/yr</strong> for mutual funds. The fix is to use data that includes delisted names.</p>
+
+<h3>Costs, slippage, and the gap between paper and reality</h3>
+<p>A system that looks profitable on paper often loses money once you pay to trade it. The engine models a <strong>commission</strong> and <strong>slippage</strong>, a small adverse price movement that pushes every fill against you, so the simulated profit is the one you could actually keep.</p>
+
+<h3>In-sample vs. out-of-sample</h3>
+<p>Never judge a strategy on the same data you tuned it on, just as you would never report a regression's fit on its own training points. We reserve <strong>out-of-sample</strong> data the model never saw and use <strong>walk-forward testing</strong> to grade it.</p>
+
+<table>
+<tr><th>Pitfall</th><th>How it lies</th><th>Fix in this engine</th></tr>
+<tr><td>Look-ahead bias</td><td>Uses future info at decision time</td><td>Decide on close of \(t\), fill at open of \(t+1\); causal indicators</td></tr>
+<tr><td>Survivorship bias</td><td>Drops delisted losers (~1-4%/yr)</td><td>Data includes delisted names</td></tr>
+<tr><td>Costs &amp; slippage</td><td>Paper profit vanishes in practice</td><td>Model commission + adverse-fill slippage</td></tr>
+<tr><td>In-sample tuning</td><td>Rewards overfitting noise</td><td>Reserve out-of-sample; walk-forward</td></tr>
+</table>
+
+<div class="callout callout-key"><div class="h">Key idea</div><p>A backtest is a <strong>hypothesis, not a promise</strong>. Done honestly, it tells you a strategy <em>might</em> work; only out-of-sample evidence and live trading can confirm it.</p></div></div></section>
+<section class="block" id="metrics"><div class="container lesson"><h2>Reading the Scoreboard Honestly</h2>
+
+<p>A strategy is only as trustworthy as the numbers you use to judge it. Each metric below answers a different question, and most can be quietly gamed if you read them carelessly. Here is how to read them like a skeptic.</p>
+
+<h3>How much did we make?</h3>
+
+<p>The simplest measure is <strong>total return</strong>: how much your account grew from start to finish, where \(V_{\text{start}}\) and \(V_{\text{end}}\) are the portfolio values at the beginning and end.</p>
+
+<div class="math-block">$$R = \frac{V_{\text{end}}}{V_{\text{start}}} - 1$$</div>
+
+<p>But total return ignores time: 50% over one year is very different from 50% over ten. The honest per-year figure is the <strong>compound annual growth rate (CAGR)</strong>, the geometric mean of yearly growth, where \(Y\) is the number of years:</p>
+
+<div class="math-block">$$\mathrm{CAGR} = \left(\frac{V_{\text{end}}}{V_{\text{start}}}\right)^{1/Y} - 1$$</div>
+
+<p>By Jensen's inequality the geometric mean is always \(\le\) the arithmetic mean of yearly returns, so CAGR never flatters you the way "average annual return" can. It is the rate that, compounded, actually reproduces your ending balance.</p>
+
+<h3>How much risk did we take?</h3>
+
+<p>The <strong>Sharpe ratio</strong> is the classic reward-per-unit-risk measure. With \(r_t\) the return in period \(t\) and \(r_f\) the risk-free rate, it is the average excess return divided by its standard deviation (the same "spread" you met in intro stats):</p>
+
+<div class="math-block">$$\mathrm{SR} = \frac{\mathbb{E}[r_t - r_f]}{\mathrm{std}(r_t)}, \qquad \mathrm{SR}_{\text{annual}} = \mathrm{SR}\,\sqrt{P}$$</div>
+
+<p>Here \(P\) is the number of periods per year. This \(\sqrt{P}\) scaling is exactly where people cheat themselves: \(P\) depends on your <strong>bar size</strong>. For daily bars \(P = 252\) (trading days), but for hourly bars over a 6.5-hour session, \(P \approx 252 \times 6.5 \approx 1638\). Blindly multiplying an hourly Sharpe by \(\sqrt{252}\) understates the count and mangles the number.</p>
+
+<div class="callout callout-warn"><div class="h">Watch out</div><p>The \(\sqrt{P}\) rule assumes returns are <strong>i.i.d.</strong> (independent and identically distributed) across periods. Real returns are autocorrelated and fat-tailed, so the annualized Sharpe is systematically optimistic. Treat it as a rough comparison, not a promise.</p></div>
+
+<p>The <strong>Sortino ratio</strong> fixes one complaint: investors don't mind upside volatility, only downside. It replaces the denominator with <strong>downside deviation</strong>, where MAR is your minimum acceptable return:</p>
+
+<div class="math-block">$$\mathrm{DD} = \sqrt{\frac{1}{N}\sum_{t=1}^{N}\big[\min(r_t-\mathrm{MAR},0)\big]^2}$$</div>
+
+<p>Returns above the target contribute exactly 0 to the sum, but you still divide by the <strong>full</strong> count \(N\), so a strategy with many calm winning periods is rewarded.</p>
+
+<h3>How bad did it get?</h3>
+
+<p><strong>Maximum drawdown</strong> is the largest peak-to-trough drop of the equity curve, the worst losing streak you would have had to stomach. Recovery is brutally asymmetric: a -50% drawdown requires a +100% gain just to break even, because you are now growing a much smaller base.</p>
+
+<div class="callout callout-danger"><div class="h">Reality check</div><p>Many investors abandon a sound strategy mid-drawdown. A backtest with a -50% max drawdown is psychologically unholdable for most people, even if its CAGR looks great.</p></div>
+
+<h3>Trade-level diagnostics</h3>
+
+<table>
+<tr><th>Metric</th><th>Formula</th><th>What it tells you</th></tr>
+<tr><td>Win rate</td><td>winners / total</td><td>How often you're right</td></tr>
+<tr><td>Profit factor</td><td>gross profit / |gross loss|</td><td>Dollars won per dollar lost</td></tr>
+<tr><td>Expectancy</td><td>WinRate·AvgWin − LossRate·AvgLoss</td><td>Expected profit per trade</td></tr>
+</table>
+
+<div class="callout callout-key"><div class="h">Key idea</div><p>Win rate alone is misleading. A strategy can win 90% of the time and still lose money if the rare 10% of losses are enormous. Expectancy multiplies size by frequency, so it is the only one of these that tells you whether the average trade actually makes money.</p></div></div></section>
+<section class="block" id="overfitting"><div class="container lesson"><h2>The statistics of fooling yourself</h2>
+
+<p>Here is the most important idea on this whole page. If you try <strong>many</strong> strategies or parameter settings and keep only the best one, that best result will look impressive <strong>even if every strategy you tried is truly worthless</strong>. The number itself is biased upward by the act of searching. This is the <strong>multiple-comparisons problem</strong>, and it is the same trap intro statistics warns you about.</p>
+
+<p>Recall the classic version: if you run 100 independent hypothesis tests at significance level \(\alpha = 0.05\), you expect about \(100 \times 0.05 = 5\) "significant" results by pure chance, with no real effect anywhere. A backtest search is exactly this. Each strategy you test is one more hypothesis test, and "best Sharpe out of many" is just "smallest p-value out of many" wearing a different costume.</p>
+
+<div class="callout callout-key"><div class="h">Key idea</div><p>The maximum of many noisy numbers is not a typical number — it is systematically large. Selecting the winner from a large search guarantees an inflated winner.</p></div>
+
+<h3>How big is the illusion?</h3>
+
+<p>Suppose you test \(N\) strategies that are all genuinely worthless, and you measure each one's Sharpe ratio (return per unit of return volatility — here, in units of pure noise). The expected value of the <em>best</em> one grows like:</p>
+
+<div class="math-block">$$ \mathbb{E}\left[\max_{1 \le i \le N} S_i\right] \;\approx\; \sqrt{2\ln N} $$</div>
+
+<p>Here \(S_i\) is strategy \(i\)'s Sharpe in noise units, \(\max\) picks the best of them, \(\ln N\) is the natural logarithm of the number of trials, and \(\mathbb{E}[\cdot]\) is the expected (average) value. Try \(N = 1000\) worthless strategies and the best one shows a Sharpe near \(\sqrt{2\ln 1000} \approx 3.7\) — a number that looks like genius, manufactured entirely by luck.</p>
+
+<h3>Deflating the Sharpe ratio</h3>
+
+<p>The <strong>Deflated Sharpe Ratio</strong> (Bailey &amp; López de Prado, 2014) makes the correction explicit: it discounts a measured Sharpe for the <strong>number of trials attempted</strong> and for <strong>non-normal returns</strong> (fat tails and skew, which markets have). The subtlety: what matters is the number of <strong>effectively independent</strong> trials. Sweeping one knob from 9 to 11 days produces highly correlated strategies, so they count for far less than their raw number — much like correlated tests inflate your effective \(\alpha\) less than independent ones would.</p>
+
+<h3>Your defenses</h3>
+
+<ul>
+<li><strong>Pre-register</strong> a hypothesis before you look at the data.</li>
+<li><strong>Hold out</strong> out-of-sample data the search never touched.</li>
+<li>Use <strong>walk-forward analysis</strong>: fit on the past, test on the next unseen window, roll forward.</li>
+<li><strong>Correct for the number of trials</strong> you actually ran (count honestly).</li>
+</ul>
+
+<div class="callout callout-danger"><div class="h">Reality check</div><p>A high backtest Sharpe is <strong>not</strong> evidence of skill. It only becomes evidence once you account for how many strategies you tried, whether the data leaked the future, and whether dead and delisted stocks were quietly excluded. Until then, an impressive number is the expected reward for searching — not for being right.</p></div></div></section>
+<section class="block" id="golive"><div class="container lesson"><h2>Going Live: From Paper Money to Real Money</h2>
+
+<p>A backtest that looks great is a hypothesis. Paper trading is the experiment that tests it on data the bot has never seen, in real time, on the same code path that will one day move real dollars. Only after that should a single real cent be at risk.</p>
+
+<div class="callout callout-key"><div class="h">Key idea</div><p>The bot uses a <strong>pluggable broker layer</strong>: swapping from paper to live is a configuration change, not a rewrite. That means the strategy code you validate is <em>literally</em> the code that trades. No surprises from "but the live version was different."</p></div>
+
+<h3>Why Alpaca paper first, then tiny on Schwab</h3>
+<p>Alpaca's <strong>paper trading</strong> is free, instant, and runs on real-time IEX market data with the identical code path as live. Schwab is different: the Trader API can place real equity orders, but its only "Sandbox" returns canned data and does <em>not</em> support real paper trading (the schwab-py library plainly states "Paper trading is not supported"). Schwab app approval also takes a few business days, and its OAuth tokens expire fast (access token ~30 minutes, refresh token ~7 days), forcing periodic re-login. So the plan is: <strong>prove it on Alpaca paper, then start with tiny size on Schwab live.</strong></p>
+
+<h3>Rules that constrain a day-trading bot</h3>
+<p>The <strong>Pattern Day Trader (PDT)</strong> rule historically flagged 4+ day trades in 5 business days in a <em>margin</em> account, requiring \(\$25{,}000\) minimum equity. A big 2026 change: FINRA amended Rule 4210 to <strong>eliminate</strong> the PDT designation and the \(\$25k\) floor, replacing them with intraday-margin standards effective June 4, 2026, with an 18-month broker phase-in through October 20, 2027.</p>
+
+<div class="callout callout-warn"><div class="h">Watch out</div><p>During the transition, behavior is <strong>broker-dependent</strong>. Do not assume the new rule is live at your broker. A <strong>cash account</strong> sidesteps PDT entirely but is bound by settlement (T+1 since May 28, 2024): reusing unsettled funds risks a <strong>Good Faith Violation</strong> (3 in 12 months &rarr; 90-day restriction) or a <strong>Freeriding</strong> violation (just 1 &rarr; 90-day restriction).</p></div>
+
+<p>Taxes bite too. The <strong>wash-sale rule</strong> disallows a loss if you rebuy the same or substantially identical security within 30 days before or after (a 61-day window). A high-frequency bot trips this constantly. Qualifying traders may make a <strong>Section 475(f) mark-to-market election</strong> to be exempt &mdash; consult a tax professional.</p>
+
+<h3>Safety guards built into this bot</h3>
+<ul>
+<li><strong>Kill switch</strong> &mdash; halt all trading instantly.</li>
+<li><strong>Per-order notional cap</strong> &mdash; bounds the dollars any single order can risk.</li>
+<li><strong>Max open positions</strong> &mdash; limits concentration.</li>
+<li><strong>Day-trade counter</strong> &mdash; tracks trades against the rules above.</li>
+<li><strong>Explicit opt-in</strong> &mdash; required before any live trading; the default is always paper.</li>
+</ul>
+
+<h3>The go-live checklist</h3>
+<ol>
+<li>Run on <strong>Alpaca paper</strong> until live results match backtest expectations over a meaningful stretch of unseen days.</li>
+<li>Confirm the broker layer config is the <em>only</em> thing changing between paper and live.</li>
+<li>Decide <strong>cash vs. margin</strong> deliberately, knowing the PDT, settlement, and violation trade-offs.</li>
+<li>Get your broker's <strong>current</strong> PDT/intraday-margin policy <strong>in writing</strong> &mdash; the rule is mid-transition.</li>
+<li>Complete Schwab app approval and verify OAuth token refresh works unattended.</li>
+<li>Set the <strong>per-order notional cap</strong> and <strong>max open positions</strong> to deliberately tiny values.</li>
+<li>Verify the <strong>kill switch</strong> works before you need it.</li>
+<li>Talk to a tax professional about wash sales and a possible <strong>475(f)</strong> election.</li>
+<li>Flip the <strong>explicit opt-in</strong> and start with the smallest size you can.</li>
+<li>Monitor closely; scale up only after live behavior matches expectations.</li>
+</ol>
+
+<div class="callout callout-danger"><div class="h">Reality check</div><p>This is <strong>not financial advice</strong>, and rules vary by broker and change over time &mdash; especially during the 2026&ndash;2027 PDT transition. Verify your own broker's current policy <strong>in writing</strong> before risking real money, and consult a licensed professional for tax and investment decisions.</p></div></div></section>
+
+<footer>
+  <div class="container">
+    <p><strong>Trading<span style="color:var(--accent)">Lab</span></strong> — an educational project. Nothing here is financial advice.
+      Day trading is risky and most people who try it lose money. Trade paper money while you learn.</p>
+    <p>Run it yourself: <span class="kbd">uv run uvicorn trading_bot.web.app:app --reload</span> ·
+      <a href="https://github.com/AMindToThink/trading-bot" target="_blank" rel="noopener">source on GitHub</a></p>
+  </div>
+</footer>
+
+</body>
+</html>

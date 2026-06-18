@@ -7,7 +7,7 @@ import math
 import pandas as pd
 
 from trading_bot.indicators import rsi
-from trading_bot.strategies.base import Strategy, register
+from trading_bot.strategies.base import Param, Strategy, _clean, register
 
 
 @register("rsi")
@@ -23,6 +23,20 @@ class RSIStrategy(Strategy):
     """
 
     name = "RSI Momentum"
+    num_symbols = 1
+    blurb = "Oscillator: buy oversold (RSI<30), exit at the midline (RSI 50)."
+    signal_katex = r"\mathrm{RSI}_t = 100 - \frac{100}{1+\mathrm{RS}_t};\ \text{buy if } \mathrm{RSI}_t < 30"
+    default_symbols = ("TSLA",)
+
+    @classmethod
+    def param_spec(cls):
+        return [
+            Param("window", 14, "int", "Window (N)", "Wilder smoothing length."),
+            Param("oversold", 30.0, "float", "Oversold", "Buy below this RSI."),
+            Param("overbought", 70.0, "float", "Overbought", "Short above this RSI."),
+            Param("exit_level", 50.0, "float", "Exit (midline)", "Close when RSI crosses this."),
+            Param("allow_short", False, "bool", "Allow shorting", "Short when overbought."),
+        ]
 
     def __init__(
         self,
@@ -64,3 +78,14 @@ class RSIStrategy(Strategy):
         else:  # short
             if r < self.exit_level:
                 ctx.close_position(self.symbol)
+
+    def signal_panel(self):
+        return {
+            "name": f"RSI({self.window})",
+            "values": _clean(self.rsi),
+            "thresholds": [
+                {"y": self.overbought, "label": "Overbought"},
+                {"y": self.exit_level, "label": "Midline"},
+                {"y": self.oversold, "label": "Oversold"},
+            ],
+        }
