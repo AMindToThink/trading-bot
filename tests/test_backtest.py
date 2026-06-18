@@ -1,6 +1,5 @@
 """Unit tests for the event-driven backtest engine, including look-ahead safety."""
 
-import numpy as np
 import pytest
 
 from conftest import make_ohlcv

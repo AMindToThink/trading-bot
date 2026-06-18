@@ -1,7 +1,6 @@
 """Tests that each strategy registers, runs through the engine, and trades when it should."""
 
 import numpy as np
-import pytest
 
 from conftest import make_ohlcv
 from trading_bot.backtest.engine import BacktestConfig, run_backtest
