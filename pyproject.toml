@@ -19,6 +19,9 @@ dependencies = [
     "pydantic>=2.6",
 ]
 
+[project.scripts]
+trading-bot = "trading_bot.cli:main"
+
 [project.optional-dependencies]
 schwab = ["schwab-py>=1.5.0"]  # added only when migrating to real money on Schwab
 
